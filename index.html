@@ -7,6 +7,7 @@
     <title>Police Clearance Certificate</title>
     <link rel="shortcut icon" href="police.jpg">
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>
         :root {
             --primary-color: #2578cf;
@@ -148,16 +149,16 @@
         .cert-top-info { 
             display: flex; 
             justify-content: space-between; 
-            align-items: flex-end;
+            align-items: flex-end; /* Align items to the bottom */
             margin: 35px 0 25px 0; 
         }
         .cert-top-info .qr-section {
             display: flex;
-            flex-direction: column; 
-            align-items: flex-start;
+            flex-direction: column; /* Stack QR code and Ref No vertically */
+            align-items: flex-start; /* Align them to the left */
         }
         .cert-top-info .qr-section p { 
-            margin-top: 5px; 
+            margin-top: 5px; /* Add space between QR code and Ref No */
         }
         .cert-top-info .date-section p { margin: 0; }
         .cert-top-info p { font-size: 1.05em; }
@@ -194,7 +195,7 @@
         .cert-page-footer {
             background-image: url('body_bg.png');
             background-repeat: repeat;
-            padding: 100px 20px;
+            padding: 100px 20px; 
             text-align: center;
             color: white;
             font-size: 1em;
@@ -318,12 +319,34 @@
         return result;
     };
     
-    // *** NEW FUNCTION ***
-    // This function creates the shareable link with all data encoded
+    // Convert a Uint8Array to a Base64 string
+    function uint8ArrayToBase64(bytes) {
+        let binary = '';
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    // Convert a Base64 string to a Uint8Array
+    function base64ToUint8Array(base64) {
+        const binary_string = window.atob(base64);
+        const len = binary_string.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binary_string.charCodeAt(i);
+        }
+        return bytes;
+    }
+
     const generateShareableViewLink = (cert) => {
         const certDataString = JSON.stringify(cert);
-        const encodedData = btoa(certDataString); // Base64 encoding
-        // Use pathname to ensure it works correctly on GitHub pages
+        // Compress the string using pako
+        const compressed = pako.deflate(certDataString);
+        // Encode the compressed data to Base64
+        const encodedData = uint8ArrayToBase64(compressed);
+        
         return `${window.location.origin}${window.location.pathname}?cert_data=${encodedData}`;
     };
 
@@ -510,12 +533,14 @@
         const printBtn = document.getElementById('printBtnCertPage');
 
         try {
-            const decodedString = atob(encodedData); // Base64 decoding
-            const cert = JSON.parse(decodedString);
+            // Decompress and parse the certificate data
+            const uint8Array = base64ToUint8Array(encodedData);
+            const decompressed = pako.inflate(uint8Array, { to: 'string' });
+            const cert = JSON.parse(decompressed);
             
             if (cert) {
                 certificateOutput.innerHTML = generateCertificateHTML(cert);
-                const viewUrl = generateShareableViewLink(cert); // Generate the same URL for QR code
+                const viewUrl = generateShareableViewLink(cert);
                 const qrElement = document.getElementById('qrcode-cert');
                 if(qrElement) {
                     qrElement.innerHTML = '';
