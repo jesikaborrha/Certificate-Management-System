@@ -164,7 +164,7 @@
         .cert-top-info p { font-size: 1.05em; }
 
         #qrcode-cert { 
-            border: 5px solid #f8f8f8; 
+            border: 5px solid #f8f8f8; /* Match paper color */
             display: inline-block; 
             line-height: 0;
             box-shadow: 0 0 1px rgba(0,0,0,0.5);
@@ -195,7 +195,7 @@
         .cert-page-footer {
             background-image: url('body_bg.png');
             background-repeat: repeat;
-            padding: 100px 20px; 
+            padding: 100px 20px;
             text-align: center;
             color: white;
             font-size: 1em;
@@ -319,17 +319,12 @@
         return result;
     };
     
-    // Convert a Uint8Array to a Base64 string
     function uint8ArrayToBase64(bytes) {
         let binary = '';
-        const len = bytes.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
-        }
+        bytes.forEach(byte => binary += String.fromCharCode(byte));
         return window.btoa(binary);
     }
 
-    // Convert a Base64 string to a Uint8Array
     function base64ToUint8Array(base64) {
         const binary_string = window.atob(base64);
         const len = binary_string.length;
@@ -342,11 +337,8 @@
 
     const generateShareableViewLink = (cert) => {
         const certDataString = JSON.stringify(cert);
-        // Compress the string using pako
         const compressed = pako.deflate(certDataString);
-        // Encode the compressed data to Base64
         const encodedData = uint8ArrayToBase64(compressed);
-        
         return `${window.location.origin}${window.location.pathname}?cert_data=${encodedData}`;
     };
 
@@ -533,7 +525,6 @@
         const printBtn = document.getElementById('printBtnCertPage');
 
         try {
-            // Decompress and parse the certificate data
             const uint8Array = base64ToUint8Array(encodedData);
             const decompressed = pako.inflate(uint8Array, { to: 'string' });
             const cert = JSON.parse(decompressed);
