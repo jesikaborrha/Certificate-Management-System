@@ -7,7 +7,6 @@
     <title>Police Clearance Certificate</title>
     <link rel="shortcut icon" href="police.jpg">
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>
         :root {
             --primary-color: #2578cf;
@@ -319,27 +318,18 @@
         return result;
     };
     
-    // Corrected encoding function
     const generateShareableViewLink = (cert) => {
         const certDataString = JSON.stringify(cert);
-        const compressed = pako.deflate(certDataString, { to: 'string' });
-        // Use a URL-safe Base64 encoding
-        const encodedData = btoa(compressed).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        const encodedData = btoa(certDataString);
         return `${window.location.origin}${window.location.pathname}?cert_data=${encodedData}`;
     };
     
-    // Corrected decoding function
     const decodeSharedData = (encodedData) => {
         try {
-            let base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
-            while (base64.length % 4) {
-                base64 += '=';
-            }
-            const decodedString = atob(base64);
-            const decompressed = pako.inflate(decodedString, { to: 'string' });
-            return JSON.parse(decompressed);
+            const decodedString = atob(encodedData);
+            return JSON.parse(decodedString);
         } catch (e) {
-            console.error("Decoding/Decompressing failed:", e);
+            console.error("Decoding failed:", e);
             return null;
         }
     };
