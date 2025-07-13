@@ -164,7 +164,7 @@
         .cert-top-info p { font-size: 1.05em; }
 
         #qrcode-cert { 
-            border: 5px solid #f8f8f8; /* Match paper color */
+            border: 5px solid #f8f8f8; 
             display: inline-block; 
             line-height: 0;
             box-shadow: 0 0 1px rgba(0,0,0,0.5);
@@ -319,28 +319,31 @@
         return result;
     };
     
-    function uint8ArrayToBase64(bytes) {
-        let binary = '';
-        bytes.forEach(byte => binary += String.fromCharCode(byte));
-        return window.btoa(binary);
-    }
-
-    function base64ToUint8Array(base64) {
-        const binary_string = window.atob(base64);
-        const len = binary_string.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) {
-            bytes[i] = binary_string.charCodeAt(i);
-        }
-        return bytes;
-    }
-
+    // Corrected encoding function
     const generateShareableViewLink = (cert) => {
         const certDataString = JSON.stringify(cert);
-        const compressed = pako.deflate(certDataString);
-        const encodedData = uint8ArrayToBase64(compressed);
+        const compressed = pako.deflate(certDataString, { to: 'string' });
+        // Use a URL-safe Base64 encoding
+        const encodedData = btoa(compressed).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
         return `${window.location.origin}${window.location.pathname}?cert_data=${encodedData}`;
     };
+    
+    // Corrected decoding function
+    const decodeSharedData = (encodedData) => {
+        try {
+            let base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            const decodedString = atob(base64);
+            const decompressed = pako.inflate(decodedString, { to: 'string' });
+            return JSON.parse(decompressed);
+        } catch (e) {
+            console.error("Decoding/Decompressing failed:", e);
+            return null;
+        }
+    };
+
 
     const generateCertificateHTML = (cert) => {
         return `
@@ -524,25 +527,18 @@
         const certificateOutput = document.getElementById('certificateOutput');
         const printBtn = document.getElementById('printBtnCertPage');
 
-        try {
-            const uint8Array = base64ToUint8Array(encodedData);
-            const decompressed = pako.inflate(uint8Array, { to: 'string' });
-            const cert = JSON.parse(decompressed);
-            
-            if (cert) {
-                certificateOutput.innerHTML = generateCertificateHTML(cert);
-                const viewUrl = generateShareableViewLink(cert);
-                const qrElement = document.getElementById('qrcode-cert');
-                if(qrElement) {
-                    qrElement.innerHTML = '';
-                    new QRCode(qrElement, { text: viewUrl, width: 90, height: 90, correctLevel: QRCode.CorrectLevel.H });
-                }
-                printBtn.addEventListener('click', () => window.print());
-            } else {
-                 throw new Error("Invalid certificate data");
+        const cert = decodeSharedData(encodedData);
+        
+        if (cert) {
+            certificateOutput.innerHTML = generateCertificateHTML(cert);
+            const viewUrl = generateShareableViewLink(cert);
+            const qrElement = document.getElementById('qrcode-cert');
+            if(qrElement) {
+                qrElement.innerHTML = '';
+                new QRCode(qrElement, { text: viewUrl, width: 90, height: 90, correctLevel: QRCode.CorrectLevel.H });
             }
-        } catch(e) {
-            console.error("Failed to decode or parse certificate data:", e);
+            printBtn.addEventListener('click', () => window.print());
+        } else {
             certificateOutput.innerHTML = `<h2 style="text-align:center; padding: 50px;">Certificate Not Found or Invalid Link</h2>`;
             printBtn.style.display = 'none';
         }
